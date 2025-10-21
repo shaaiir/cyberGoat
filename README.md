@@ -3,7 +3,7 @@ cyberGoat — a hands-on, instructor-ready cybersecurity course repo with 10 pra
 
 
 
-# 🧠 CyberGoat — Advanced Cybersecurity Labs & Training Repository
+# CyberGoat — Advanced Cybersecurity Labs & Training Repository
 
 <p align="center">
   <img src="https://github.com/shaaiir/cyberGoat/blob/main/cybergoat1.png" width="320" style="border-radius:12px; margin-right:10px;" />
@@ -12,7 +12,7 @@ cyberGoat — a hands-on, instructor-ready cybersecurity course repo with 10 pra
 
 ---
 
-### 🚀 About CyberGoat
+### About CyberGoat
 **CyberGoat** is a complete, practical cybersecurity training repository featuring 10 hands-on modules — covering networking, web app pentesting, cloud security, Active Directory attacks, Kubernetes, malware analysis, SOC operations, and more.  
 Each module includes detailed labs, Docker/Vagrant setups, tools, exploit demos, and instructor/student templates for structured learning.
 
