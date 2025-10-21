@@ -6,9 +6,10 @@ cyberGoat — a hands-on, instructor-ready cybersecurity course repo with 10 pra
 # CyberGoat — Advanced Cybersecurity Labs & Training Repository
 
 <p align="center">
-  <img src="https://github.com/shaaiir/cyberGoat/blob/main/cybergoat1.png" width="320" style="border-radius:12px; margin-right:10px;" />
-  <img src="https://github.com/shaaiir/cyberGoat/blob/main/cybergoat2.png" width="320" style="border-radius:12px;" />
+  <img src="https://github.com/shaaiir/cyberGoat/blob/main/cybergoat1.png" width="320" style="border-radius:12px; display:block; margin:0 auto 12px;" />
+  <img src="https://github.com/shaaiir/cyberGoat/blob/main/cybergoat2.png" width="320" style="border-radius:12px; display:block; margin:0 auto;" />
 </p>
+
 
 ---
 
