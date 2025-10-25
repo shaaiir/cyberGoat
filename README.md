@@ -21,7 +21,7 @@ Each module includes detailed labs, Docker/Vagrant setups, tools, exploit demos,
 
 ### 🧩 Modules Overview
 1. Core Foundations  
-2. Web Application Penetration Testing  
+2. Proxy, Reverse Proxy & Network Cloaking  
 3. Cloud Pentesting (AWS, Azure, GCP)  
 4. Pivoting, Tunneling, Proxying  
 5. Active Directory & Internal Exploitation  
@@ -29,7 +29,7 @@ Each module includes detailed labs, Docker/Vagrant setups, tools, exploit demos,
 7. Social Engineering  
 8. Malware Analysis & Reverse Engineering  
 9. Blue Team, SOC & Splunk  
-10. Proxy, Reverse Proxy & Network Cloaking  
+10. Web Application Penetration Testing 
 
 ---
 
