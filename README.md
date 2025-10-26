@@ -721,3 +721,84 @@ Cleanup after testing
 Remove mitmproxy CA from your browser / OS trust store if you no longer need it.
 Stop mitmproxy and ngrok.
 Revert any global proxy settings in your browser or OS.
+
+
+# Setup Guide — chat-app
+
+This guide walks you through cloning, configuring, and running the chat application locally and exposing it with **ngrok** for public testing. Use this as your `README.md` in the repository.
+
+---
+
+## Prerequisites
+
+- Git installed  
+- Python 3.10+ (or Python 3.x) and `pip`  
+- Visual Studio Code (optional, recommended)  
+- ngrok (optional — for public exposure)
+
+---
+
+## 1. Clone the repository
+
+```bash
+git clone https://github.com/shaaiir/chat-app.git
+cd chat-app
+2. Open in Visual Studio Code
+code .
+If code . doesn't work: open VS Code and use File → Open Folder... to open the chat-app directory.
+3. Python virtual environment (recommended)
+Create and activate a virtual environment.
+macOS / Linux
+
+python3 -m venv venv
+source venv/bin/activate
+Windows (PowerShell)
+python -m venv venv
+venv\Scripts\Activate.ps1
+Windows (Command Prompt)
+python -m venv venv
+venv\Scripts\activate
+4. Install dependencies
+pip install -r requirements.txt
+5. Environment configuration
+If the project uses a .env file, create one from the example (if provided):
+cp .env.example .env
+# then edit .env to set any secrets or configuration values
+Alternatively, adjust configuration directly in config.py or the appropriate settings file.
+6. Run the application
+python run.py
+By default the app typically runs at:
+http://127.0.0.1:5000
+Open that URL in your browser to test locally.
+7. Expose the local app publicly with ngrok (optional)
+Install ngrok (macOS example):
+brew install ngrok
+# or download from https://ngrok.com
+Start ngrok to forward port 5000:
+ngrok http 5000
+Copy the public URL printed by ngrok (e.g. https://abcd-1234-fgngrok-free.app) and use it from other devices or share with testers.
+Keep the ngrok process running while you use the public URL.
+8. Development workflow (VS Code)
+Edit Python, HTML, and static files directly in VS Code.
+Use the integrated terminal (View → Terminal) for commands.
+Run the app and test locally before exposing it.
+Git workflow
+git add .
+git commit -m "Describe your change"
+git push
+9. Troubleshooting
+python / pip not found: use python3 / pip3 or add Python to your PATH.
+Port in use / different port: if your app runs on another port, change the ngrok command: ngrok http <PORT>.
+ngrok errors (e.g., ERR_NGROK_3004): ensure the local app is running on the specified port.
+Do not commit venv: add venv/ and other temp files to .gitignore (example below).
+Example .gitignore:
+venv/
+__pycache__/
+*.pyc
+.env
+.idea/
+.vscode/
+10. Cleanup
+Stop the Flask (or other) server and ngrok when finished.
+Deactivate virtual environment:
+deactivate
