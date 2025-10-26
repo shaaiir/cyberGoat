@@ -585,5 +585,109 @@ module-2-proxies/
 * `ss -tuln | grep 80`
 
 ---
+# Intercepting and Reading SSL Chat Traffic with mitmproxy (Demo)
 
+> **Warning / Legal:** This guide is for educational and authorized testing only. Do **not** intercept traffic that you do not have explicit permission to inspect. Using mitmproxy or similar tools on networks or applications without authorization may be illegal.
 
+This document describes how to set up **mitmproxy** and demonstrate HTTPS interception for a local demo chat application exposed via **ngrok**, showing step-by-step how to view login credentials and chat messages in plaintext.
+
+---
+
+## Prerequisites
+
+- **Python 3.10+** and `pip` installed  
+- Your chat app running locally (e.g. `python run.py`) and accessible at `http://127.0.0.1:5000` or `http://localhost:5000`  
+- **ngrok** installed (Homebrew: `brew install ngrok` or download from ngrok.com)  
+- **mitmproxy** installed (`pip install mitmproxy` or `brew install mitmproxy`)  
+- Recommended browser: **Firefox** or **Chrome**
+
+---
+
+## Overview / High-level flow
+
+1. Run your chat app locally over **HTTP** (easiest)  
+2. Expose the app publicly via **ngrok**  
+3. Run **mitmproxy** locally (default proxy port `8080`)  
+4. Configure your browser to use mitmproxy as an HTTP/HTTPS proxy  
+5. Visit the ngrok URL in the proxied browser and interact with the chat app  
+6. Inspect decrypted traffic (HTTP, HTTPS, WebSocket) in mitmproxy UI
+
+---
+
+## Step 1 — Start your chat app (HTTP mode recommended)
+
+If your app supports running in HTTP mode, do that for simpler testing with ngrok:
+
+```bash
+# from your project directory
+python run.py   # or: python run_http.py
+# ensure the app listens on http://127.0.0.1:5000 or http://localhost:5000
+If your app only runs HTTPS with self-signed certs, you can still proceed but will need to install mitmproxy's CA in the browser (see Step 6).
+Step 2 — Expose the app publicly with ngrok
+Open a new terminal:
+ngrok http 5000
+ngrok will print a public forwarding URL like https://abcd-1234-fgngrok-free.app. Copy that https URL and keep ngrok running.
+Keep ngrok running while you test — it forwards public requests to your local server.
+Step 3 — Run mitmproxy
+Open another terminal and start mitmproxy on default port 8080:
+mitmproxy
+This launches the interactive mitmproxy UI (terminal-based). mitmproxy listens on 127.0.0.1:8080 by default and will display intercepted flows.
+Step 4 — Configure your browser to use mitmproxy
+Set your browser to use a manual proxy for both HTTP and HTTPS:
+Address: 127.0.0.1
+Port: 8080
+Firefox: Settings → Network Settings → Manual proxy configuration
+Chrome: Chrome uses system proxy settings (set via OS network settings or a proxy extension).
+If you use Chrome and don't want to change global proxy settings, you can run a separate browser profile or use Firefox for testing.
+Step 5 — Visit your chat app via ngrok
+In the proxied browser, open the ngrok URL you copied earlier (e.g. https://abcd-1234-fgngrok-free.app).
+Log in, register, and send messages as usual.
+mitmproxy will capture requests and responses (including WebSocket frames used for chat).
+Step 6 — (Optional) Trust mitmproxy's CA for full TLS interception
+When intercepting HTTPS, the browser will warn about mitmproxy's certificate. For a clean intercept experience, install the mitmproxy CA:
+With mitmproxy running and your browser proxied, open: http://mitm.it
+Download the appropriate CA certificate for your browser / OS
+Follow installation instructions for your platform (Firefox has its own certificate store; macOS uses Keychain)
+Once installed & trusted, mitmproxy can fully decrypt HTTPS traffic without browser warnings
+For local testing only. Installing a CA permanently alters trust on the system — remove it after testing if needed.
+Step 7 — Intercept and read traffic in mitmproxy
+In the mitmproxy terminal UI:
+Each HTTP/HTTPS/WebSocket request is shown as a flow (one line)
+Use arrow keys to select a flow and press Enter to view details
+Tabs in the flow view show:
+Request — headers and body (e.g., login POST with credentials)
+Response — server replies
+WebSocket — inspect real-time chat frames (JSON payloads are shown in plaintext)
+Example WebSocket/chat payloads you might see:
+["send_message",{"receiver_id":2,"message":"hi who are you"}]
+["receive_message",{"message_id":30,"sender":"shahir","content":"hi who are you"}]
+This demonstrates that, once intercepted and decrypted, chat messages and login credentials can be observed in plaintext.
+Step 8 — Document & demonstrate
+Capture screenshots of mitmproxy showing:
+Decrypted login POST with credentials
+WebSocket frames showing chat content
+Any useful headers like Authorization, Cookie, X-Forwarded-For, etc.
+Explain that this is a demonstration of how a man-in-the-middle with a trusted or forced CA can read encrypted traffic.
+Troubleshooting
+ngrok ERR_NGROK_3004: Make sure your local app is actually running on the port you supplied to ngrok (5000), and that you used ngrok http 5000.
+No flows in mitmproxy: Verify browser proxy settings; restart the browser after changing proxy settings; confirm mitmproxy is listening on 127.0.0.1:8080.
+TLS errors / browser still warns: Install the mitmproxy CA (http://mitm.it) or use HTTP for testing.
+Not seeing localhost traffic: Modern browsers sometimes bypass proxies for localhost — using ngrok (public URL) avoids that bypass.
+WebSocket traffic not visible: Ensure mitmproxy is running before opening the page; recreate the connection if necessary.
+Security & Ethics Note (important)
+This method demonstrates the risks where a client or environment trusts a CA that intercepts traffic, or when organizational devices enforce TLS inspection. MitM interception is powerful and intrusive — only use on systems and applications for which you have explicit authorization (your own test apps, pentest engagements with written permission, or lab environments). Unauthorized interception is illegal and unethical.
+Quick commands reference
+# start chat app (example)
+python run.py
+
+# expose local port 5000 to the internet with ngrok
+ngrok http 5000
+
+# start mitmproxy
+mitmproxy
+
+# visit http://mitm.it in proxied browser to install the CA
+Cleanup after testing
+Remove mitmproxy CA from your browser / OS trust store if you no longer need it.
+Stop mitmproxy and ngrok.
+Revert any global proxy settings in your browser or OS.
