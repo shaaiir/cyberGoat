@@ -816,3 +816,196 @@ __pycache__/
 Stop the Flask (or other) server and ngrok when finished.
 Deactivate virtual environment:
 deactivate
+
+```
+# Module 03 — Cloud: PrivEsc Lab ctf
+
+# AWS Privilege Escalation Lab — EC2 → IAM (Authorized Lab / CTF)
+
+> ⚠️ **Important (Legal & Ethics):** This lab is intended for **authorized** security training and CTF use only. Do **not** attempt to reproduce these activities against systems or cloud accounts you do not own or for which you do not have **explicit written permission**. Misuse may be illegal.
+
+## Overview
+
+This lab simulates a misconfigured AWS environment in a **controlled, authorized** sandbox where students practice discovery, analysis, and defensive controls for cloud privilege escalation. The target is an EC2 instance with misconfigurations intentionally present that — in this lab only — allow escalation to an IAM administrative principal and retrieval of a lab "flag".
+
+**Goal:** Demonstrate the attack surface, record the steps taken (for learning and reporting), and learn how to detect and remediate such misconfigurations.
+
+> **Do not** run this lab in production or on real customer accounts. Use an isolated sandbox account or an official CTF training platform.
+
+---
+
+## Learning Objectives
+
+By completing this lab you will be able to:
+
+- Identify common cloud misconfigurations that lead to privilege escalation.
+- Map the attack surface between compute (EC2), identity (IAM), and service metadata/configuration.
+- Demonstrate authorized, controlled exploitation of a lab-only misconfiguration to retrieve a flag (for learning).
+- Produce a defensive report: indicators, remediation, monitoring recommendations, and preventive measures.
+
+---
+
+## Prerequisites
+
+- Basic Linux command-line skills (ssh, bash).  
+- Familiarity with AWS console and CLI (IAM, EC2).  
+- An isolated AWS sandbox account or an approved CTF environment.  
+- Tools: `awscli`, `curl`, `jq`, and a browser.  
+- Instructor / lab operator must provide the lab environment URL, credentials, or access token.
+
+---
+
+## Lab Scope & Rules
+
+- This is an **authorized** training lab. Do not attempt these techniques outside the sandbox.  
+- Do **not** exfiltrate real user data or credentials; the lab contains synthetic data only.  
+- Document every action you take. Your submission must include commands you ran, outputs (screenshots or logs), and an explanation of findings.  
+- You may use automated scanners only if permitted by the instructor. Avoid destructive operations that modify shared infrastructure.  
+- If you discover an unexpected vulnerability beyond the lab scope, notify the lab owner immediately and stop testing.
+
+---
+
+## Environment (Lab Operator / Instructor notes)
+
+> The lab operator provisions a locked-down sandbox environment and injects controlled misconfiguration(s) that are safe for learning. Examples of intended misconfiguration types (for operator use only) include: overly permissive IAM policies attached to roles, unnecessary instance metadata exposure, or misconfigured trust relationships. **Operators must not publish exploit recipes.**
+
+Typical lab components provided to students:
+
+- An **EC2 instance** (publicly reachable via SSH or web UI) that runs the target service.  
+- A **flag file** placed in a protected location on the instance (e.g., `/home/ctf/flag.txt`) — this is the learning target.  
+- Access credentials or temporary access provided via the lab platform (not real production credentials).  
+- A short task brief with the public endpoint or instance IP.
+
+---
+
+## Tasks (Student Deliverables)
+
+1. **Reconnaissance:** Enumerate the services and configuration exposed by the target (network, processes, environment).  
+2. **Analysis:** Identify the misconfiguration(s) that could lead to privilege escalation. Explain why they are risky.  
+3. **Proof of Concept (PoC):** In the lab ONLY, obtain the lab flag and show evidence (screenshot or command output). Do **not** include destructive changes.  
+4. **Report:** Produce a remediation plan and monitoring strategy that would prevent or detect this attack in production.
+
+Your final submission should include:
+- A step-by-step narrative of what you did (no details that could be abused outside the lab).  
+- Screenshots or terminal outputs demonstrating the flag retrieval.  
+- A remediation & detection section (see below for guidance).  
+- A short lessons-learned summary.
+
+---
+
+## High-level Hints (Non-actionable)
+
+To help you focus your investigation, consider the following **high-level** concepts — these are intentionally non-prescriptive and do not include exploitation steps:
+
+- Review **identity configuration** — roles, policies, and trust relationships — to look for overly broad permissions.  
+- Inspect the EC2 instance environment for configuration or credential artifacts that are stored insecurely.  
+- Check how services authenticate to other APIs and whether any default or insecure mechanisms are being used.  
+- Consider what the instance is allowed to do in AWS (its service role or attached policies) and whether that scope is excessive.
+
+---
+
+## Detection & Monitoring (what defenders should watch for)
+
+If this technique were attempted in a real environment, defenders should look for:
+
+- Unusual or unexpected `AssumeRole` / `Get*` API calls in **CloudTrail**.  
+- New or anomalous uses of instance API calls or temporary credentials.  
+- Unexpected IAM policy changes, trust policy modifications, or newly attached policies.  
+- Suspicious network connections from compute instances to unknown endpoints.  
+- GuardDuty / Config / Security Hub alerts for privilege escalation patterns.
+
+Suggested monitoring controls:
+
+- Enable **CloudTrail** with multi-region logging and alerts for critical IAM events.  
+- Use **AWS Config** rules for detecting overly permissive IAM policies and public roles.  
+- Enable **Amazon GuardDuty** and tune findings for privilege escalation and anomalous API usage.  
+- Centralize logs and create detection rules for `sts:AssumeRole`, `iam:AttachRolePolicy`, and other high-risk operations.
+
+---
+
+## Mitigation & Hardening (defensive guidance)
+
+High-level, non-actionable mitigations:
+
+- **Principle of least privilege:** Grant the minimum necessary permissions to instance roles and service principals.  
+- **Avoid long-lived credentials on instances:** Use short-lived credentials and secure secret management.  
+- **Harden instance configuration:** Remove unnecessary credentials or files from instance images; restrict metadata access where feasible.  
+- **IAM hygiene:** Regularly audit policies, use policy boundaries, and prefer resource-level permissions.  
+- **Network controls:** Use security groups, VPC endpoints, and private connectivity to limit exposure.
+
+---
+
+## Assessment & Scoring
+
+Example rubric (adjust per course):
+
+- Reconnaissance & discovery: 25%  
+- Identification of misconfigurations & risk analysis: 30%  
+- Successful (authorized) flag retrieval with proper evidence: 25%  
+- Quality of remediation report & monitoring recommendations: 20%
+
+To receive full credit, students must provide clear evidence, a well-structured remediation plan, and demonstrate understanding of why the misconfiguration was risky.
+
+---
+
+## Lab Setup & Teardown (Operator)
+
+**Setup:** Operators should provision the lab in an isolated AWS account or CTF platform. Document the exact resources, configurations, and the intended misconfiguration(s) in internal instructor notes (do not publish exploit details to students). Use CloudFormation / Terraform for reproducible deployment if desired — ensure templates are reviewed for safety.
+
+**Teardown:** After the lab, operators must:
+
+- Terminate EC2 instances and any IAM principals created for the lab.  
+- Rotate or delete any temporary credentials used.  
+- Delete CloudTrail / logs as required by policy or archive securely.  
+- Conduct a post-lab review to ensure no artifacts remain.
+
+---
+
+## Safety & Responsible Disclosure
+
+- If you discover a real, unexpected vulnerability in a non-lab account, follow responsible disclosure policies and inform the cloud account owner or provider immediately.  
+- Do not publish exploit details that could be used to attack real systems.
+
+---
+
+## References & Further Reading
+
+- AWS Security Best Practices (official AWS docs)  
+- OWASP Cloud Top 10 / Cloud Security Foundations  
+- CloudTrail, GuardDuty, and AWS Config documentation
+
+---
+
+## Appendix — Example Submission Template (for students)
+
+Use this template for your report:
+
+1. **Title / Date / Lab ID**  
+2. **Summary (1–2 lines)**  
+3. **Environment snapshot** (what the instructor provided)  
+4. **Reconnaissance notes** (non-sensitive outputs)  
+5. **Findings** (describe misconfigurations found)  
+6. **Proof (screenshots / outputs showing flag retrieval)**  
+7. **Remediation plan** (steps to eliminate the misconfiguration)  
+8. **Detection plan** (CloudTrail/GuardDuty/Config rules to add)  
+9. **Lessons learned**
+
+---
+
+## Contact / Instructor Notes
+
+For instructors: include private instructor notes that document exactly what misconfigurations were introduced, where the flag is located, and how to validate student submissions. Do not include those notes in the public README.
+
+---
+
+## Final note
+
+If you’d like, I can now:
+
+- Convert this into a polished `README.md` file and push it into your repository (if you provide repo access), or  
+- Produce a separate **instructor-only** document that lists the exact lab configuration and validation steps (kept private), or  
+- Draft a secure CloudFormation/Terraform *template skeleton* that provisions a safe baseline (no vulnerable configs) which instructors can modify internally to add controlled misconfigurations.
+
+Which of these would you like me to prepare next?
+
+
