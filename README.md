@@ -758,18 +758,26 @@ venv\Scripts\Activate.ps1
 Windows (Command Prompt)
 python -m venv venv
 venv\Scripts\activate
+
+
 4. Install dependencies
 pip install -r requirements.txt
+
+
 5. Environment configuration
 If the project uses a .env file, create one from the example (if provided):
 cp .env.example .env
 # then edit .env to set any secrets or configuration values
 Alternatively, adjust configuration directly in config.py or the appropriate settings file.
+
+
 6. Run the application
 python run.py
 By default the app typically runs at:
 http://127.0.0.1:5000
 Open that URL in your browser to test locally.
+
+
 7. Expose the local app publicly with ngrok (optional)
 Install ngrok (macOS example):
 brew install ngrok
@@ -778,6 +786,8 @@ Start ngrok to forward port 5000:
 ngrok http 5000
 Copy the public URL printed by ngrok (e.g. https://abcd-1234-fgngrok-free.app) and use it from other devices or share with testers.
 Keep the ngrok process running while you use the public URL.
+
+
 8. Development workflow (VS Code)
 Edit Python, HTML, and static files directly in VS Code.
 Use the integrated terminal (View → Terminal) for commands.
@@ -786,6 +796,8 @@ Git workflow
 git add .
 git commit -m "Describe your change"
 git push
+
+
 9. Troubleshooting
 python / pip not found: use python3 / pip3 or add Python to your PATH.
 Port in use / different port: if your app runs on another port, change the ngrok command: ngrok http <PORT>.
@@ -798,6 +810,8 @@ __pycache__/
 .env
 .idea/
 .vscode/
+
+
 10. Cleanup
 Stop the Flask (or other) server and ngrok when finished.
 Deactivate virtual environment:
