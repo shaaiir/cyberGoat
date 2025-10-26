@@ -21,7 +21,7 @@ Each module includes detailed labs, Docker/Vagrant setups, tools, exploit demos,
 
 ### 🧩 Modules Overview
 1. Core Foundations  
-2. Proxy, Reverse Proxy & Network Cloaking  
+2. Proxy, Reverse Proxy & Forward Proxy  
 3. Cloud Pentesting (AWS, Azure, GCP)  
 4. Pivoting, Tunneling, Proxying  
 5. Active Directory & Internal Exploitation  
@@ -193,3 +193,397 @@ If you tell me whether this module is for your **personal lab** or **structured 
 [5](https://www.youtube.com/watch?v=pBG4xSpUTlc)
 [6](https://www.hackingarticles.in/chisel-port-forwarding-a-detailed-guide/)
 [7](https://www.youtube.com/watch?v=hBXFJP6YDgY)
+
+
+# Module 2 — Proxies: Forward Proxy, Reverse Proxy, Transparent Proxy
+
+> **Purpose:** A practical module for learning, deploying, and testing proxy types used in networking and web infrastructure. Includes conceptual explanations, diagrams, hands-on labs, example configs, Dockerized lab setups, assessments, and a suggested Git repository structure.
+
+---
+
+## Table of Contents
+
+1. Overview & Learning Objectives
+2. Prerequisites
+3. Key Concepts & Terminology
+4. Proxy Types
+
+   * Forward Proxy
+   * Reverse Proxy
+   * Transparent Proxy
+   * Distinction & Comparison
+5. Architecture Diagrams (ASCII + explanation)
+6. Hands-on Labs
+
+   * Lab A: Simple Node.js Forward Proxy
+   * Lab B: Squid Forward Proxy (Docker)
+   * Lab C: Nginx Reverse Proxy + Upstream App (Docker Compose)
+   * Lab D: TLS termination & Let's Encrypt (Reverse Proxy)
+   * Lab E: Caching behavior & headers testing
+7. Example Configurations
+
+   * `nginx` reverse proxy snippets
+   * `squid` forward proxy snippets
+   * `docker-compose.yml` for a complete lab
+8. Testing & Validation (curl examples, browser tips)
+9. Security Considerations
+10. Troubleshooting Checklist
+11. Assessment: Exercise & Quiz
+12. Git Repository Structure
+13. How to submit / mark as complete
+
+---
+
+## 1. Overview & Learning Objectives
+
+By the end of this module you will be able to:
+
+* Explain the difference between forward proxies and reverse proxies.
+* Deploy and configure a basic forward proxy (Node.js and Squid).
+* Configure an Nginx reverse proxy with multiple upstreams, load balancing, and TLS termination.
+* Understand common headers (X-Forwarded-For, X-Real-IP, Via, Forwarded) and how proxies modify them.
+* Evaluate caching implications and proxy security controls.
+* Use Docker Compose to stand up repeatable labs.
+
+## 2. Prerequisites
+
+* Basic Linux command-line skills (ssh, curl, grep).
+* Docker & Docker Compose installed (labs use containers).
+* Basic understanding of HTTP and TLS.
+
+## 3. Key Concepts & Terminology
+
+* **Client:** The originator of requests (browser, curl).
+* **Origin / Upstream:** The server that has the content or application.
+* **Proxy:** An intermediary that forwards requests between client and server, and may inspect, filter, cache, or modify traffic.
+* **Forward Proxy:** Client-configured proxy used to reach arbitrary external servers on behalf of clients.
+* **Reverse Proxy:** Server-side proxy placed in front of one or more origin servers; clients think they talk to the origin but talk to the proxy.
+* **Transparent Proxy:** Intercepts traffic without client configuration (commonly done using network routing/iptables).
+* **TLS Termination:** Proxy handles TLS (HTTPS) and forwards plain HTTP to upstream.
+
+## 4. Proxy Types
+
+### Forward Proxy
+
+* Acts on behalf of clients. Typical uses: access control, rate limiting, anonymization, caching, content filtering.
+* Clients must be configured (browser proxy, environment variables) unless a transparent forward proxy is used.
+
+### Reverse Proxy
+
+* Acts on behalf of one or more servers. Typical uses: load balancing, TLS termination, caching, WAF integration, path-based routing.
+* Common products: Nginx, HAProxy, Traefik, Apache httpd, F5.
+
+### Transparent Proxy
+
+* Intercepts traffic without client awareness. Often used in enterprise networks for content filtering or caching.
+* Requires network-level manipulation (routing, NAT, firewall rules).
+
+### Comparison (short table)
+
+| Feature           |                        Forward Proxy |                   Reverse Proxy |
+| ----------------- | -----------------------------------: | ------------------------------: |
+| Configured by     |                               Client |            Server/Network admin |
+| Primary use       | Client privacy / filtering / caching | Load balancing / TLS / security |
+| Visible to client |                        Yes (usually) |       No (client thinks origin) |
+
+## 5. Architecture Diagrams
+
+### Forward Proxy (simple)
+
+Client -> Forward Proxy -> Internet (Origin)
+
+### Reverse Proxy (simple)
+
+Client -> Reverse Proxy -> Upstream App A
+-> Upstream App B
+
+(Reverse proxy terminates TLS, does path-based routing, or load balancing.)
+
+## 6. Hands-on Labs
+
+> Each lab folder contains `README.md`, `Dockerfile` (if needed), and `test.sh` to run basic checks.
+
+### Lab A — Minimal Node.js Forward Proxy
+
+**Purpose:** Implement a very small HTTP forward proxy to learn request/response flow and headers.
+
+**Files:** `labs/forward-proxy/node-proxy/index.js`
+
+```js
+// index.js — simple forward proxy (educational only, not production)
+const http = require('http');
+const net = require('net');
+const url = require('url');
+
+const server = http.createServer((req, res) => {
+  const target = url.parse(req.url);
+  const options = {
+    hostname: target.hostname,
+    port: target.port || 80,
+    path: target.path,
+    method: req.method,
+    headers: req.headers
+  };
+
+  const proxyReq = http.request(options, proxyRes => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  req.pipe(proxyReq, { end: true });
+});
+
+server.on('connect', (req, clientSocket, head) => {
+  // handle HTTPS CONNECT tunnels
+  const { port, hostname } = new URL(`http://${req.url}`);
+  const serverSocket = net.connect(port || 443, hostname, () => {
+    clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+    serverSocket.write(head);
+    serverSocket.pipe(clientSocket);
+    clientSocket.pipe(serverSocket);
+  });
+});
+
+server.listen(3128, () => console.log('Forward proxy listening on 3128'));
+```
+
+**How to test:**
+
+* Start: `node index.js`
+* Use curl: `curl -x http://localhost:3128 http://example.com` (HTTP)
+* For HTTPS: `curl -x http://localhost:3128 https://example.com` (CONNECT tunneling)
+
+**Learning notes:**
+
+* This proxy forwards headers as-is; clients' `Host`, `User-Agent` etc. will be seen by upstream.
+* Production proxies need ACLs, auth, rate-limits, TLS interception (if required), and logging.
+
+### Lab B — Squid Forward Proxy (Docker)
+
+**Purpose:** Use Squid for a realistic forward proxy with ACLs and caching.
+
+**Files:** `labs/forward-proxy/squid/` contains `Dockerfile`, `squid.conf`, `docker-compose.yml` and `README.md`.
+
+**Key `squid.conf` points:**
+
+* `http_port 3128` — listen port
+* Access control lists for allowed networks
+* cache_dir settings
+
+**Quick start:** `docker-compose up -d` then configure browser/system to use `localhost:3128` as HTTP/HTTPS proxy.
+
+### Lab C — Nginx Reverse Proxy + App (Docker Compose)
+
+**Purpose:** Deploy an Nginx reverse proxy that routes `/app1` to App1 and `/app2` to App2, with load balancing.
+
+**Files:** `labs/reverse-proxy/nginx/` and `labs/reverse-proxy/apps/` — includes sample Node apps.
+
+**Sample `nginx.conf` snippet:**
+
+```nginx
+http {
+  upstream app_pool {
+    server app1:3000;
+    server app2:3000;
+  }
+
+  server {
+    listen 80;
+    server_name proxy.local;
+
+    location / {
+      proxy_pass http://app_pool;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /app1/ {
+      proxy_pass http://app1:3000/;
+    }
+  }
+}
+```
+
+**Docker Compose:** provides `nginx`, `app1`, `app2`. Add `extra_hosts` mapping `proxy.local` to `127.0.0.1` for local testing.
+
+**Test:** `curl http://localhost:8080/` -> proxy should distribute to upstreams.
+
+### Lab D — TLS termination & Let's Encrypt (Reverse Proxy)
+
+**Purpose:** Configure TLS termination at the reverse proxy using Certbot or an automated proxy (Traefik) for certificate management.
+
+**Notes:**
+
+* For local development, use self-signed certs and add to OS trust.
+* For public-facing endpoints, use Let's Encrypt with either Certbot or a proxy that supports ACME (Traefik, Caddy).
+
+### Lab E — Caching behavior & headers testing
+
+**Tasks:**
+
+* Configure `proxy_cache_path` and `proxy_cache` in Nginx.
+* Request resource repeatedly while varying `Cache-Control` headers and observe hits/misses with `X-Cache-Status` header.
+
+## 7. Example Configurations
+
+### Nginx — Reverse Proxy basic
+
+```nginx
+server {
+  listen 80;
+  server_name example.com;
+
+  location / {
+    proxy_pass http://backend:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+### Squid — Minimal `squid.conf` (example)
+
+```
+http_port 3128
+acl localnet src 10.0.0.0/8    # adjust
+http_access allow localnet
+http_access deny all
+cache_dir ufs /var/spool/squid 100 16 256
+access_log /var/log/squid/access.log
+```
+
+### Docker Compose (Reverse Proxy + 2 apps)
+
+```yaml
+version: '3.8'
+services:
+  nginx:
+    image: nginx:stable
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - '8080:80'
+    depends_on:
+      - app1
+      - app2
+
+  app1:
+    build: ./apps/app1
+    ports:
+      - '3001:3000'
+
+  app2:
+    build: ./apps/app2
+    ports:
+      - '3002:3000'
+```
+
+## 8. Testing & Validation
+
+**Useful curl commands**
+
+* Test forward proxy (HTTP):
+  `curl -v -x http://localhost:3128 http://example.com/`
+
+* Test reverse proxy (path routing):
+  `curl -v http://localhost:8080/app1/`
+
+* Check X-Forwarded-For:
+  `curl -H 'X-Forwarded-For: 1.2.3.4' http://localhost:8080/` (observe logs)
+
+* HTTPS (CONNECT via curl):
+  `curl -v --proxy http://localhost:3128 https://example.com/`
+
+## 9. Security Considerations
+
+* **Authentication:** Implement proxy auth for forward proxies (Basic, Digest, or OAuth-based). Squid supports auth helpers.
+* **ACLs:** Limit which clients can use the forward proxy to avoid open proxy abuse.
+* **Header hygiene:** Don’t blindly trust `X-Forwarded-For`; validate/log real client IP when possible (use mutual TLS or secure network paths).
+* **TLS:** Terminate TLS at reverse proxy when necessary but consider end-to-end TLS if confidentiality must be preserved.
+* **Rate limiting & WAF:** Use proxy features or front with WAF to mitigate abusive traffic.
+* **Logging & privacy:** Ensure logs are stored securely and PII is masked if policy requires.
+
+## 10. Troubleshooting Checklist
+
+* Is the proxy listening on the expected port? `ss -tuln | grep 3128`
+* Are firewall rules blocking traffic? Check `iptables` / `ufw`.
+* For reverse proxy: is `proxy_pass` URL reachable from the proxy container? `docker exec -it nginx curl http://app1:3000/`
+* Check headers — `Host`, `X-Forwarded-For`, `X-Real-IP` — are they set correctly?
+* If HTTPS failing: inspect cert chain with `openssl s_client -connect host:443 -servername host`.
+
+## 11. Assessment: Exercises & Quiz
+
+**Practical tasks**
+
+1. Deploy the Docker Compose reverse proxy lab and demonstrate path-based routing to two apps.
+2. Run the Node.js forward proxy and fetch a site via the proxy (show headers).
+3. Configure Squid to allow only a specific client IP and to log cache hits. Show evidence.
+
+**Quiz (short)**
+
+* Q1: What header typically carries client IPs through a reverse proxy? (Answer: `X-Forwarded-For`)
+* Q2: What is an open forward proxy and why is it dangerous? (Answer: a proxy that accepts requests from any client on the Internet — can be abused for anonymized attacks)
+* Q3: Does a reverse proxy require client configuration? (Answer: No)
+
+## 12. Git Repository Structure
+
+Suggested structure to commit to Git (recommended `module-2-proxies` repo):
+
+```
+module-2-proxies/
+├── README.md                   # module overview (this file)
+├── docs/
+│   ├── slides.pdf
+│   └── cheatsheet.md
+├── labs/
+│   ├── forward-proxy/
+│   │   ├── node-proxy/
+│   │   │   ├── index.js
+│   │   │   └── README.md
+│   │   └── squid/
+│   │       ├── Dockerfile
+│   │       ├── squid.conf
+│   │       └── docker-compose.yml
+│   └── reverse-proxy/
+│       ├── nginx/
+│       │   ├── nginx.conf
+│       │   └── Dockerfile (if custom)
+│       ├── apps/
+│       │   ├── app1/
+│       │   │   └── server.js
+│       │   └── app2/
+│       └── docker-compose.yml
+├── examples/
+│   ├── nginx-sample.conf
+│   └── squid-sample.conf
+├── tests/
+│   └── run_tests.sh
+└── license.txt
+```
+
+**Commit guidance:** Make each lab a separate commit with descriptive history (e.g., `labs: add nginx reverse-proxy compose + sample apps`). Use branches for features: `feature/nginx-tls`, `feature/squid-auth`.
+
+## 13. How to submit / mark as complete
+
+* Add a `COMPLETED.md` in the lab folder with commands you ran, outputs, and screenshots where relevant.
+* Create PR to `main` with lab solutions; include `test.sh` to automatically validate basic behavior.
+
+---
+
+### Appendix A — Quick reference: Useful commands
+
+* `curl -v -x http://proxy:3128 http://example.com/`
+* `docker-compose up --build -d`
+* `docker logs -f <container>`
+* `ss -tuln | grep 80`
+
+---
+
+
